@@ -1,0 +1,983 @@
+/* Aurora Quest — 8-bit 像素风格。
+   设计语言：深空 CRT 底 + 霓虹调色板（青/琥珀/品红/绿），
+   全部硬直角 + 双层像素描边 + 硬阴影；扫描线保留 CRT 氛围。
+   单主题（像素游戏刻意只有夜屏一种世界观）。
+
+   布局约定：整页锁死一屏（100dvh、body 不滚动）。
+   桌面端 = 顶栏 / 战斗区 + 右侧栏(地图·战利品·英雄榜常驻) / 页脚；
+   窄屏(≤900px) = 顶栏 / 战斗区 / 副面板标签页，超长内容一律在面板内部滚动。 */
+
+/* 缝合像素字体 12px（等宽变体,简中子集,OFL 许可见 fonts/OFL.txt）。
+   打包脚本会在单文件版里把这个 url 内联成 data URI。 */
+@font-face {
+  font-family: "Fusion Pixel 12px";
+  src: url("./fonts/fusion-pixel-12px-monospaced-zh_hans.otf.woff2") format("woff2");
+  font-display: swap; /* 字体未到先用回退渲染,到了再换,不白屏 */
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #060b18;
+  --panel: #0b1428;
+  --panel-deep: #070d1d;
+  --ink: #04070e;
+  --line: rgba(140, 197, 255, 0.28);
+  --text: #edf7ff;
+  --muted: #9fb4cb;
+  --cyan: #66e8ff;
+  --cyan-strong: #b8fbff;
+  --amber: #ffc85e;
+  --magenta: #ff6f91;
+  --green: #8ff3a5;
+  --danger: #ff7587;
+  --mono: "Fusion Pixel 12px", "IBM Plex Mono", "SFMono-Regular", Consolas,
+    "Liberation Mono", monospace;
+  --sans: "Fusion Pixel 12px", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", system-ui, sans-serif;
+  --max: 1240px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  background:
+    radial-gradient(circle at 24% 12%, rgba(102, 232, 255, 0.13), transparent 30%),
+    radial-gradient(circle at 78% 85%, rgba(255, 111, 145, 0.1), transparent 28%),
+    linear-gradient(180deg, #050814 0%, #081223 52%, #04070e 100%);
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  height: 100dvh; /* 移动端地址栏收放时仍占满可视区 */
+  color: var(--text);
+  font-family: var(--sans);
+  background: transparent;
+  overflow: hidden; /* 一屏化：页面永不滚动，滚动只发生在面板内部 */
+}
+
+/* CRT 扫描线 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  mix-blend-mode: screen;
+  z-index: 0;
+}
+
+a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus-visible {
+  color: var(--cyan-strong);
+  text-decoration: underline;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px dashed var(--cyan);
+  outline-offset: 2px;
+}
+
+kbd {
+  font-family: var(--mono);
+  font-size: 0.82em;
+  padding: 1px 5px;
+  background: var(--panel-deep);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+/* 一屏网格：中列 minmax(0,1fr) 允许战斗区收缩，侧栏定宽 */
+.page-shell {
+  position: relative;
+  z-index: 1;
+  width: min(var(--max), calc(100vw - 20px));
+  height: 100%;
+  margin: 0 auto;
+  padding: 10px 0;
+  display: grid;
+  grid-template:
+    "topbar topbar" auto
+    "battle side" minmax(0, 1fr)
+    "footer footer" auto
+    / minmax(0, 1fr) clamp(272px, 28vw, 330px);
+  gap: 10px;
+}
+
+/* ---- 像素面板与按钮 ------------------------------------------------------ */
+
+.pixel-panel {
+  background: var(--panel);
+  border: 3px solid var(--line);
+  box-shadow:
+    0 0 0 3px var(--ink),
+    6px 6px 0 rgba(0, 0, 0, 0.45);
+}
+
+.pixel-btn {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--text);
+  padding: 7px 12px;
+  background: var(--panel-deep);
+  border: 2px solid var(--line);
+  box-shadow: 0 3px 0 var(--ink);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+
+.pixel-btn:hover:not(:disabled) {
+  border-color: var(--cyan);
+  color: var(--cyan-strong);
+}
+
+.pixel-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.pixel-btn.primary {
+  background: rgba(102, 232, 255, 0.14);
+  border-color: var(--cyan);
+}
+
+.pixel-btn.ghost {
+  opacity: 0.85;
+}
+
+.pixel-btn:disabled,
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.panel-title {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.2em;
+  color: var(--amber);
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+/* ---- 顶部 HUD ------------------------------------------------------------- */
+
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 8px 14px;
+}
+
+.logo {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.98rem;
+  letter-spacing: 0.18em;
+  color: var(--cyan);
+  text-shadow: 3px 3px 0 var(--ink), 0 0 14px rgba(102, 232, 255, 0.5);
+  white-space: nowrap;
+}
+
+.topbar-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.stat strong {
+  color: var(--text);
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.xp-meter {
+  width: 96px;
+  height: 10px;
+  background: var(--panel-deep);
+  border: 2px solid var(--line);
+  padding: 2px;
+}
+
+.xp-meter-fill {
+  width: 0%;
+  height: 100%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 6px,
+      rgba(4, 7, 14, 0.55) 6px,
+      rgba(4, 7, 14, 0.55) 8px
+    ),
+    linear-gradient(90deg, var(--cyan), var(--amber));
+  transition: width 240ms steps(6);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ---- 战斗屏 ---------------------------------------------------------------- */
+
+.battle {
+  grid-area: battle;
+  min-height: 0; /* 允许被网格压缩，超出部分交给 .question 内滚 */
+  padding: 12px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.battle-head h1 {
+  margin: 0;
+  font-size: clamp(1rem, 2.2vw, 1.3rem);
+  line-height: 1.3;
+  text-shadow: 2px 2px 0 var(--ink);
+  text-wrap: balance;
+}
+
+/* boss 展示台 */
+.boss-zone {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 10px 12px 8px;
+  background:
+    radial-gradient(ellipse at 50% 90%, rgba(102, 232, 255, 0.12), transparent 62%),
+    var(--panel-deep);
+  border: 2px solid var(--line);
+}
+
+#boss-canvas {
+  width: clamp(64px, 11vh, 116px);
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 14px rgba(102, 232, 255, 0.25));
+  animation: boss-bob 2.6s ease-in-out infinite alternate;
+}
+
+@keyframes boss-bob {
+  from { transform: translateY(-3px); }
+  to { transform: translateY(4px); }
+}
+
+/* 被命中：闪白 + 抖动（反馈窗口内播放，重渲染后消失） */
+.boss-zone.hit #boss-canvas {
+  animation: boss-hit 0.42s steps(2) both;
+}
+
+@keyframes boss-hit {
+  0% { filter: brightness(3) drop-shadow(0 0 18px rgba(255, 255, 255, 0.9)); transform: translate(-4px, 0); }
+  50% { filter: brightness(2.2); transform: translate(4px, -2px); }
+  100% { filter: brightness(1); transform: translate(0, 0); }
+}
+
+/* 格挡（答错）：boss 得意地晃一下，红光一闪 */
+.boss-zone.block #boss-canvas {
+  animation: boss-block 0.5s steps(3) both;
+}
+
+@keyframes boss-block {
+  0% { filter: drop-shadow(0 0 16px rgba(255, 117, 135, 0.9)); transform: scale(1.08); }
+  100% { filter: none; transform: scale(1); }
+}
+
+/* 已击败：灰化倒下 */
+.boss-zone.defeated #boss-canvas {
+  filter: grayscale(1) brightness(0.55);
+  transform: rotate(90deg) translateX(6px);
+  animation: none;
+}
+
+.boss-zone.defeated .boss-name {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.boss-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.boss-name {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  color: var(--amber);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.hp-bar {
+  display: flex;
+  gap: 3px;
+}
+
+.hp-cell {
+  width: 13px;
+  height: 13px;
+  background: var(--panel);
+  border: 2px solid rgba(140, 197, 255, 0.2);
+}
+
+.hp-cell.filled {
+  background: linear-gradient(180deg, var(--green), #4fbf72);
+  border-color: rgba(143, 243, 165, 0.6);
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.35);
+}
+
+.hp-bar.low .hp-cell.filled {
+  background: linear-gradient(180deg, var(--danger), #c23a52);
+  border-color: rgba(255, 117, 135, 0.6);
+  animation: hp-blink 0.8s steps(2) infinite;
+}
+
+@keyframes hp-blink {
+  50% { opacity: 0.55; }
+}
+
+/* 伤害飘字 */
+.fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.fx-float {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-weight: 700;
+  animation: fx-rise 0.9s steps(8) forwards;
+}
+
+.fx-float.dmg {
+  color: var(--amber);
+  font-size: 1.5rem;
+  text-shadow: 3px 3px 0 var(--ink);
+}
+
+.fx-float.miss {
+  color: var(--muted);
+  font-size: 1.05rem;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+@keyframes fx-rise {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(-50%, -58px); }
+}
+
+/* RPG 对话框（章节剧情）——一屏化：最多约三行，超出内滚 */
+.dialogue {
+  flex: none;
+  padding: 8px 12px;
+  background: var(--panel-deep);
+  border: 2px solid var(--line);
+  border-left: 6px solid var(--cyan);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--text);
+  /* 恰好三行（3 × 1.6em）+ 上下 padding/border，避免半行裁切 */
+  max-height: calc(4.8em + 20px);
+  overflow-y: auto;
+}
+
+.dialogue p {
+  margin: 0;
+}
+
+.dialogue p + p {
+  margin-top: 6px;
+}
+
+/* 问题与选项——战斗区的弹性主体：空间不够时在此内部滚动 */
+.question {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.question-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.question h2 {
+  margin: 6px 0 10px;
+  font-size: clamp(0.95rem, 1.9vw, 1.18rem);
+  line-height: 1.45;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.choices button {
+  min-height: 46px;
+  text-align: left;
+  padding: 8px 10px 8px 12px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  background: var(--panel-deep);
+  color: var(--text);
+  border: 2px solid var(--line);
+  box-shadow: 0 3px 0 var(--ink);
+  transition: transform 80ms ease, border-color 80ms ease, box-shadow 80ms ease;
+}
+
+.choices button:hover,
+.choices button:focus-visible {
+  border-color: var(--cyan);
+}
+
+.choices button:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.choice-key {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  box-shadow: 0 2px 0 var(--ink);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.choices button:hover .choice-key,
+.choices button:focus-visible .choice-key {
+  color: var(--cyan-strong);
+  border-color: var(--cyan);
+}
+
+/* 反馈锁定期间禁止再次点击 */
+.choices.locked button {
+  pointer-events: none;
+}
+
+.choices button.correct {
+  background: rgba(143, 243, 165, 0.16);
+  border-color: var(--green);
+}
+
+.choices button.correct .choice-key {
+  color: var(--green);
+  border-color: var(--green);
+}
+
+.choices button.wrong {
+  background: rgba(255, 117, 135, 0.14);
+  border-color: var(--danger);
+  animation: choice-shake 320ms steps(4);
+}
+
+.choices button.wrong .choice-key {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+@keyframes choice-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.choice-static {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--panel-deep);
+  border: 2px solid var(--line);
+  color: var(--text);
+}
+
+.choice-static.correct {
+  border-color: var(--green);
+  background: rgba(143, 243, 165, 0.14);
+}
+
+/* 战斗日志条——每条压成单行省略，高度可预测 */
+.log-strip {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.log-list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.log-entry {
+  padding: 4px 8px;
+  background: var(--panel-deep);
+  border: 1px solid rgba(140, 197, 255, 0.16);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-entry strong {
+  color: var(--amber);
+}
+
+.hint-pill,
+.source-note {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: rgba(159, 180, 203, 0.75);
+}
+
+.source-note {
+  flex: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- 侧栏：冒险地图 + 战利品 + 英雄榜 ---------------------------------------- */
+
+.belt {
+  grid-area: side;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 标签栏只在窄屏出现；桌面端三面板常驻 */
+.belt-tabs {
+  display: none;
+  gap: 6px;
+}
+
+.belt-tab {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--muted);
+  padding: 6px 4px;
+  background: var(--panel-deep);
+  border: 2px solid var(--line);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+.belt-tab.active {
+  color: var(--ink);
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.map-panel {
+  flex: none;
+  padding: 10px 12px 8px;
+}
+
+.loot-panel,
+.hiscore-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 8px;
+}
+
+.level-map {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 2px 6px;
+  overflow-x: auto;
+}
+
+.map-node {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: var(--panel-deep);
+  border: 2px solid var(--line);
+  box-shadow: 0 3px 0 var(--ink);
+}
+
+/* 节点连线 */
+.map-node:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  width: 14px;
+  height: 3px;
+  background: var(--line);
+}
+
+.map-node.completed {
+  color: var(--ink);
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.map-node.completed:not(:first-child)::before {
+  background: var(--green);
+}
+
+.map-node.active {
+  color: var(--ink);
+  background: var(--amber);
+  border-color: var(--amber);
+  animation: node-pulse 1.2s steps(2) infinite;
+}
+
+/* active 节点因不可点而 disabled，但它是“当前位置”高亮，不能被禁用样式调暗 */
+.map-node.active:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+@keyframes node-pulse {
+  50% { box-shadow: 0 3px 0 var(--ink), 0 0 14px rgba(255, 200, 94, 0.75); }
+}
+
+.map-node.locked {
+  opacity: 0.38;
+}
+
+.map-caption {
+  margin: 2px 0 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.loot-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.loot-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--panel-deep);
+  border: 2px solid rgba(140, 197, 255, 0.18);
+}
+
+.loot-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--amber);
+  background: var(--panel);
+  border: 2px solid var(--amber);
+  box-shadow: 0 3px 0 var(--ink);
+}
+
+.loot-body {
+  min-width: 0;
+}
+
+.loot-body h3 {
+  margin: 0 0 1px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loot-body p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- 英雄榜（街机 HIGH SCORES）---------------------------------------------- */
+
+.hiscore-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 2px 0 4px;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.hiscore-row {
+  display: grid;
+  grid-template-columns: 2ch 4ch 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 2px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hiscore-row + .hiscore-row {
+  border-top: 1px dashed rgba(140, 197, 255, 0.18);
+}
+
+.hiscore-row .hiscore-rank {
+  color: var(--cyan);
+}
+
+.hiscore-row .hiscore-name {
+  color: var(--text);
+  letter-spacing: 0.18em;
+}
+
+.hiscore-row .hiscore-score {
+  text-align: right;
+  color: var(--text);
+}
+
+.hiscore-row .hiscore-date {
+  font-size: 0.68rem;
+}
+
+/* 榜首：街机金 */
+.hiscore-row.top .hiscore-rank,
+.hiscore-row.top .hiscore-name,
+.hiscore-row.top .hiscore-score {
+  color: var(--amber);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.hiscore-empty {
+  padding: 4px 2px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ---- 页脚 ------------------------------------------------------------------ */
+
+.footer {
+  grid-area: footer;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.footer p {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- 响应式：窄屏单栏 + 副面板标签页 ------------------------------------------ */
+
+@media (max-width: 900px) {
+  .page-shell {
+    grid-template:
+      "topbar" auto
+      "battle" minmax(0, 1fr)
+      "side" auto
+      / minmax(0, 1fr);
+    padding: 8px 0;
+    gap: 8px;
+  }
+
+  /* 页脚是键盘提示，触屏上无意义；省出一行高度 */
+  .footer {
+    display: none;
+  }
+
+  .topbar {
+    padding: 6px 10px;
+    gap: 6px 10px;
+  }
+
+  .logo {
+    font-size: 0.88rem;
+  }
+
+  .topbar-stats {
+    font-size: 0.72rem;
+    gap: 8px;
+  }
+
+  .xp-meter {
+    display: none; /* 纯装饰，XP 数值仍在 */
+  }
+
+  .topbar-actions {
+    width: 100%;
+    gap: 6px;
+  }
+
+  .topbar-actions .pixel-btn {
+    flex: 1;
+    padding: 6px 4px;
+    font-size: 0.74rem;
+  }
+
+  .battle {
+    padding: 10px 12px 8px;
+    gap: 8px;
+  }
+
+  .boss-zone {
+    gap: 14px;
+    padding: 8px 10px 6px;
+  }
+
+  #boss-canvas {
+    width: clamp(52px, 8vh, 88px);
+  }
+
+  .boss-meta {
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .boss-name {
+    font-size: 0.78rem;
+  }
+
+  .hp-cell {
+    width: 10px;
+    height: 10px;
+  }
+
+  .dialogue {
+    /* 恰好两行 + padding/border */
+    max-height: calc(3.2em + 16px);
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+
+  .choices {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .choices button {
+    min-height: 40px;
+    padding: 6px 8px 6px 10px;
+    font-size: 0.82rem;
+  }
+
+  /* 窄屏只留最近两条日志 */
+  .log-entry:nth-child(n + 3) {
+    display: none;
+  }
+
+  .source-note {
+    display: none;
+  }
+
+  /* 副面板 → 标签页：同一时刻只展开一个，高度封顶、内部滚动 */
+  .belt-tabs {
+    display: flex;
+  }
+
+  /* flex:none 覆盖桌面端的 flex:1 1 0——auto 高度容器里 flex-basis:0
+     会让面板对 belt 高度的贡献归零，内容画出视口外被裁掉 */
+  .belt > .pixel-panel {
+    display: none;
+    flex: none;
+    max-height: 24dvh;
+  }
+
+  .belt[data-active-panel="map"] .map-panel {
+    display: block;
+  }
+
+  .belt[data-active-panel="loot"] .loot-panel,
+  .belt[data-active-panel="hiscore"] .hiscore-panel {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}

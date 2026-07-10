@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="Aurora Quest 是 AURORA 课程的 8-bit 辅助教学 RPG：打败七个黑盒 Boss，把课程通成一场冒险。"
+    />
+    <meta name="theme-color" content="#08111f" />
+    <title>Aurora Quest | AURORA 辅助课程 RPG</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <!-- 顶部状态栏：像素游戏 HUD -->
+      <header class="topbar pixel-panel">
+        <span class="logo">AURORA&nbsp;QUEST</span>
+        <div class="topbar-stats">
+          <span class="stat">Lv<strong id="player-level">1</strong></span>
+          <!-- 纯装饰：XP 数值由旁边的文本 stat 提供给辅助技术 -->
+          <div class="xp-meter" aria-hidden="true">
+            <div class="xp-meter-fill" id="xp-fill"></div>
+          </div>
+          <span class="stat">XP<strong id="player-xp">0</strong></span>
+          <span class="stat">SCORE<strong id="player-score">0</strong></span>
+          <span class="stat">HI<strong id="player-hiscore">0</strong></span>
+          <span class="stat">连击<strong id="player-streak">0</strong></span>
+          <span class="stat">通关<strong id="player-clear">0/7</strong></span>
+        </div>
+        <div class="topbar-actions">
+          <button class="pixel-btn primary" id="start-button" type="button">开始冒险</button>
+          <button class="pixel-btn" id="resume-button" type="button">继续存档</button>
+          <button class="pixel-btn ghost" id="reset-button" type="button">清空进度</button>
+          <button class="pixel-btn ghost" id="mute-button" type="button" aria-pressed="true">音效：开</button>
+        </div>
+      </header>
+
+      <!-- 战斗屏 -->
+      <main class="battle pixel-panel">
+        <div class="battle-head">
+          <h1 id="stage-title">序章：欢迎来到 AURORA Quest</h1>
+        </div>
+
+        <div class="boss-zone" id="boss-zone">
+          <div class="fx-layer" id="fx-layer" aria-hidden="true"></div>
+          <canvas id="boss-canvas" width="16" height="16" aria-hidden="true"></canvas>
+          <div class="boss-meta">
+            <span class="boss-name" id="boss-name">黑盒守门人</span>
+            <div class="hp-bar" id="boss-hp" role="img" aria-label="BOSS 血量"></div>
+          </div>
+        </div>
+
+        <div class="dialogue" id="stage-narrative"></div>
+
+        <div class="question">
+          <div class="question-meta">
+            <span id="question-count">问题 1 / 3</span>
+            <span class="hint-pill" id="question-hint-pill">先想一想，再出手</span>
+          </div>
+          <h2 id="question-prompt">问题会在这里出现。</h2>
+          <div class="choices" id="choice-list"></div>
+        </div>
+
+        <div class="log-strip">
+          <div id="battle-log-list" class="log-list" aria-live="polite"></div>
+          <button class="pixel-btn primary" id="next-button" type="button" disabled>进入下一章</button>
+        </div>
+        <p class="source-note" id="phase-source"></p>
+      </main>
+
+      <!-- 侧栏（窄屏为标签页）：冒险地图 + 战利品 + 英雄榜 -->
+      <section class="belt" id="belt" data-active-panel="map">
+        <nav class="belt-tabs" aria-label="副面板切换">
+          <button type="button" class="belt-tab active" data-panel="map">地图</button>
+          <button type="button" class="belt-tab" data-panel="loot">战利品</button>
+          <button type="button" class="belt-tab" data-panel="hiscore">英雄榜</button>
+        </nav>
+        <div class="pixel-panel map-panel">
+          <h2 class="panel-title">冒险地图</h2>
+          <div id="roadmap-list" class="level-map"></div>
+          <p class="map-caption" id="map-caption"></p>
+        </div>
+        <div class="pixel-panel loot-panel">
+          <h2 class="panel-title">战利品</h2>
+          <div id="inventory-list" class="loot-grid"></div>
+        </div>
+        <div class="pixel-panel hiscore-panel">
+          <h2 class="panel-title">英雄榜 · High Scores</h2>
+          <ol id="hiscore-list" class="hiscore-list"></ol>
+          <p class="map-caption">连击不断，倍率封顶 x4。通关终章署名上榜。</p>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p>
+          课程改动会刷新地图，游戏玩法独立。键盘：<kbd>1–4</kbd> 作答 · <kbd>Enter</kbd> 下一章 · <kbd>M</kbd> 静音。
+          发现 bug？<a href="mailto:dev@0xGarfield.com?subject=AURORA%20Quest%20Bug%20Report">告诉我们</a>。
+        </p>
+      </footer>
+    </div>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
